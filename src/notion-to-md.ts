@@ -5,7 +5,7 @@ import {
 } from "@notionhq/client/build/src/api-endpoints";
 import { CustomTransformer, MdBlock, NotionToMarkdownOptions } from "./types";
 import * as md from "./utils/md";
-import { getBlockChildren, getPageLinkFromId } from "./utils/notion";
+import { getBlockChildren, getPageRelrefFromId } from "./utils/notion";
 import { plainText } from "./utils/md";
 
 /**
@@ -224,16 +224,20 @@ export class NotionToMarkdown {
       }
 
       case "link_to_page": {
-        if (block.link_to_page.type === "page_id") {
-          const linkInfo = await getPageLinkFromId(
-            block.link_to_page.page_id,
+        const linkToPage = block.link_to_page;
+        if (linkToPage.type === "page_id") {
+          const { title, relref } = await getPageRelrefFromId(
+            linkToPage.page_id,
             this.notionClient
           );
-          if (linkInfo) {
-            return md.link(linkInfo.title, linkInfo.link);
-          }
+          return md.link(title, relref);
+        } else if (linkToPage.type === "comment_id") {
+          console.warn("Unsupported link_to_page type: comment_id");
+          return "";
+        } else if (linkToPage.type === "database_id") {
+          console.warn("Unsupported link_to_page type: database_id");
+          return "";
         }
-        return "";
       }
 
       case "embed":

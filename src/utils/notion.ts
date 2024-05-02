@@ -1,6 +1,11 @@
 import { Client, isFullPage } from "@notionhq/client";
-import { GetBlockResponse, GetPageResponse, ListBlockChildrenResponse, PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
-import { plainText } from "./md"
+import {
+  GetBlockResponse,
+  GetPageResponse,
+  ListBlockChildrenResponse,
+  PageObjectResponse,
+} from "@notionhq/client/build/src/api-endpoints";
+import { plainText } from "./md";
 
 export const getBlockChildren = async (
   notionClient: Client,
@@ -13,10 +18,11 @@ export const getBlockChildren = async (
     let start_cursor = undefined;
 
     do {
-      const response: ListBlockChildrenResponse = await notionClient.blocks.children.list({
-        start_cursor,
-        block_id
-      })
+      const response: ListBlockChildrenResponse =
+        await notionClient.blocks.children.list({
+          start_cursor,
+          block_id,
+        });
       results.push(...response.results);
 
       start_cursor = response.next_cursor;
@@ -44,24 +50,29 @@ export function getPageTitle(page: PageObjectResponse): string {
 }
 
 export function getFileName(title: any, page_id: any): string {
-  return title.replaceAll(" ", "-").replace(/--+/g, "-") +
-  "-" +
-  page_id.replaceAll("-", "") + '.md';
+  return (
+    title.replaceAll(" ", "-").replace(/--+/g, "-") +
+    "-" +
+    page_id.replaceAll("-", "") +
+    ".md"
+  );
 }
 
-export const getPageLinkFromId = async(pageId: string, notion: Client) => {
-  let dstPage: GetPageResponse
-  try{
-    dstPage = await (notion.pages.retrieve({ page_id: pageId }))
-  } catch (e) {
-    console.warn(`Failed to get page with id ${pageId}`)
-    return null
+export const getPageRelrefFromId = async (
+  pageId: string,
+  notion: Client
+): Promise<{
+  title: string;
+  relref: string;
+}> => {
+  const page = await notion.pages.retrieve({ page_id: pageId }); // throw if failed
+  if (!isFullPage(page)) {
+    throw Error(
+      `The pages.retrieve endpoint failed to return a full page for ${pageId}.`
+    );
   }
-  if (isFullPage(dstPage)){
-    const dst_file = getFileName(getPageTitle(dstPage), dstPage.id)
-    const dst_link = `{{< relref "${dst_file}" >}}`
-    return {title: getPageTitle(dstPage), link: dst_link}
-  }
-  return null
-}
-
+  const title = getPageTitle(page);
+  const fileName = getFileName(title, page.id);
+  const relref = `{{% relref "${fileName}" %}}`;
+  return { title, relref };
+};

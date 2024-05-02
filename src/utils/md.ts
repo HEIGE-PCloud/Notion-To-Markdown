@@ -10,7 +10,7 @@ import {
 } from "@notionhq/client/build/src/api-endpoints";
 import katex from "katex";
 import { CalloutIcon } from "../types";
-import { getPageLinkFromId } from "./notion";
+import { getPageRelrefFromId } from "./notion";
 import { Client } from "@notionhq/client";
 require("katex/contrib/mhchem");
 export const inlineCode = (text: string) => {
@@ -121,12 +121,12 @@ export const plainText = (textArray: RichTextItemResponse[]) => {
 /**
  * Block equation
  * Format: \[ expression \]
- * @param expression 
- * @returns 
+ * @param expression
+ * @returns
  */
 export const equation = (expression: string) => {
   return `\\[${expression}\\]`;
-}
+};
 
 function textRichText(text: TextRichTextItemResponse): string {
   const annotations = text.annotations;
@@ -155,8 +155,8 @@ function textRichText(text: TextRichTextItemResponse): string {
 /**
  * Inline equation
  * Format: \( expression \)
- * @param text 
- * @returns 
+ * @param text
+ * @returns
  */
 function equationRichText(text: EquationRichTextItemResponse): string {
   return `\\(${text.equation.expression}\\)`;
@@ -168,14 +168,11 @@ async function mentionRichText(
 ): Promise<string> {
   const mention = text.mention;
   switch (mention.type) {
-    case "page":
+    case "page": {
       const pageId = mention.page.id;
-      const linkInfo = await getPageLinkFromId(pageId, notion);
-      if (linkInfo) {
-        return link(linkInfo.title, linkInfo.link);
-      }
-      console.warn(`Failed to get page link for page with id ${pageId}`);
-      return "";
+      const { title, relref } = await getPageRelrefFromId(pageId, notion);
+      return link(title, relref);
+    }
     case "database":
     case "date":
     case "user":
