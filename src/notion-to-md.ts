@@ -201,7 +201,7 @@ export class NotionToMarkdown {
       }
 
       case "equation": {
-        return md.codeBlock(block.equation.expression);
+        return md.equation(block.equation.expression);
       }
 
       case "video":

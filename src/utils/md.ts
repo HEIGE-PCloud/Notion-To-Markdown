@@ -118,6 +118,16 @@ export const plainText = (textArray: RichTextItemResponse[]) => {
   return textArray.map((text) => text.plain_text).join("");
 };
 
+/**
+ * Block equation
+ * Format: \[ expression \]
+ * @param expression 
+ * @returns 
+ */
+export const equation = (expression: string) => {
+  return `\\[${expression}\\]`;
+}
+
 function textRichText(text: TextRichTextItemResponse): string {
   const annotations = text.annotations;
   let content = text.text.content;
@@ -142,11 +152,14 @@ function textRichText(text: TextRichTextItemResponse): string {
   return content;
 }
 
+/**
+ * Inline equation
+ * Format: \( expression \)
+ * @param text 
+ * @returns 
+ */
 function equationRichText(text: EquationRichTextItemResponse): string {
-  return katex.renderToString(text.equation.expression, {
-    displayMode: false,
-    throwOnError: false,
-  });
+  return `\\(${text.equation.expression}\\)`;
 }
 
 async function mentionRichText(
