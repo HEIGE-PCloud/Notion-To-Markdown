@@ -1,9 +1,12 @@
 import { Client, isFullBlock } from "@notionhq/client";
-import { GetBlockResponse, RichTextItemResponse } from "@notionhq/client/build/src/api-endpoints";
+import {
+  GetBlockResponse,
+  RichTextItemResponse,
+} from "@notionhq/client/build/src/api-endpoints";
 import { CustomTransformer, MdBlock, NotionToMarkdownOptions } from "./types";
 import * as md from "./utils/md";
 import { getBlockChildren, getPageLinkFromId } from "./utils/notion";
-import { plainText } from "./utils/md"
+import { plainText } from "./utils/md";
 
 /**
  * Converts a Notion page to Markdown.
@@ -11,12 +14,13 @@ import { plainText } from "./utils/md"
 export class NotionToMarkdown {
   private notionClient: Client;
   private customTransformers: Record<string, CustomTransformer>;
-  private richTextTransformer: ((textArray: RichTextItemResponse[]) => string) | undefined;
-  private unsupportedTransformer: ((type: string) => string) = () => "";
+  private richText: (textArray: RichTextItemResponse[]) => Promise<string>;
+  private unsupportedTransformer: (type: string) => string = () => "";
   constructor(options: NotionToMarkdownOptions) {
     this.notionClient = options.notionClient;
     this.customTransformers = {};
-    this.richTextTransformer = undefined;
+    this.richText = (textArray: RichTextItemResponse[]) =>
+      md.richText(textArray, this.notionClient);
   }
   setCustomTransformer(
     type: string,
@@ -26,11 +30,17 @@ export class NotionToMarkdown {
 
     return this;
   }
-  setCustomRichTextTransformer(transformer: (textArray: RichTextItemResponse[], plain?: boolean) => string) {
-    this.richTextTransformer = transformer;
+  setCustomRichTextTransformer(
+    transformer: (
+      textArray: RichTextItemResponse[],
+      notion: Client
+    ) => Promise<string>
+  ) {
+    this.richText = (textArray: RichTextItemResponse[]) =>
+      transformer(textArray, this.notionClient);
     return this;
   }
-  setUnsupportedTransformer(transformer : (type: string) => string) {
+  setUnsupportedTransformer(transformer: (type: string) => string) {
     this.unsupportedTransformer = transformer;
     return this;
   }
@@ -179,14 +189,13 @@ export class NotionToMarkdown {
     const { type } = block;
     if (type in this.customTransformers && !!this.customTransformers[type])
       return await this.customTransformers[type](block);
-    const richText = this.richTextTransformer ?? md.richText
     switch (type) {
-      case "image":
-        {
-          const image = block.image;
-          const url = image.type === "external" ? image.external.url : image.file.url;
-          return md.image(plainText(image.caption), url);
-        }
+      case "image": {
+        const image = block.image;
+        const url =
+          image.type === "external" ? image.external.url : image.file.url;
+        return md.image(plainText(image.caption), url);
+      }
       case "divider": {
         return md.divider();
       }
@@ -199,29 +208,33 @@ export class NotionToMarkdown {
         return md.video(block);
       case "pdf":
         return md.pdf(block);
-      case "file":
-        {
-          const file = block.file;
-          const link = file.type === "external" ? file.external.url : file.file.url;
-          return md.link(file.name, link);
-        }
-      case "bookmark":
-        {
-          const bookmark = block.bookmark;
-          const caption = bookmark.caption.length > 0 ? await richText(bookmark.caption) : bookmark.url;
-          return md.link(caption, bookmark.url);
-        }
+      case "file": {
+        const file = block.file;
+        const link =
+          file.type === "external" ? file.external.url : file.file.url;
+        return md.link(file.name, link);
+      }
+      case "bookmark": {
+        const bookmark = block.bookmark;
+        const caption =
+          bookmark.caption.length > 0
+            ? await this.richText(bookmark.caption)
+            : bookmark.url;
+        return md.link(caption, bookmark.url);
+      }
 
-      case "link_to_page":
-        {
-          if (block.link_to_page.type === "page_id") {
-            const linkInfo = await getPageLinkFromId(block.link_to_page.page_id, this.notionClient);
-            if (linkInfo) {
-              return md.link(linkInfo.title, linkInfo.link);
-            }
+      case "link_to_page": {
+        if (block.link_to_page.type === "page_id") {
+          const linkInfo = await getPageLinkFromId(
+            block.link_to_page.page_id,
+            this.notionClient
+          );
+          if (linkInfo) {
+            return md.link(linkInfo.title, linkInfo.link);
           }
-          return "";
         }
+        return "";
+      }
 
       case "embed":
       case "link_preview":
@@ -346,19 +359,27 @@ export class NotionToMarkdown {
       }
 
       case "paragraph":
-        return await richText(block.paragraph.rich_text,this.notionClient);
+        return await this.richText(block.paragraph.rich_text);
       case "heading_1":
-        return md.heading1(await richText(block.heading_1.rich_text));
+        return md.heading1(await this.richText(block.heading_1.rich_text));
       case "heading_2":
-        return md.heading2(await richText(block.heading_2.rich_text));
+        return md.heading2(await this.richText(block.heading_2.rich_text));
       case "heading_3":
-        return md.heading3(await richText(block.heading_3.rich_text));
+        return md.heading3(await this.richText(block.heading_3.rich_text));
       case "bulleted_list_item":
-        return md.bullet(await richText(block.bulleted_list_item.rich_text));
+        return md.bullet(
+          await this.richText(block.bulleted_list_item.rich_text)
+        );
       case "numbered_list_item":
-        return md.bullet(await richText(block.numbered_list_item.rich_text), 1);
+        return md.bullet(
+          await this.richText(block.numbered_list_item.rich_text),
+          1
+        );
       case "to_do":
-        return md.todo(await richText(block.to_do.rich_text), block.to_do.checked);
+        return md.todo(
+          await this.richText(block.to_do.rich_text),
+          block.to_do.checked
+        );
       case "code":
         return md.codeBlock(
           plainText(block.code.rich_text),
@@ -366,7 +387,7 @@ export class NotionToMarkdown {
         );
       case "callout":
         const { id, has_children } = block;
-        const callout_text = await richText(block.callout.rich_text);
+        const callout_text = await this.richText(block.callout.rich_text);
         if (!has_children) return md.callout(callout_text, block.callout.icon);
 
         let callout_string = "";
@@ -389,7 +410,7 @@ export class NotionToMarkdown {
 
         return md.callout(callout_string.trim(), block.callout.icon);
       case "quote":
-        const quote_text = await richText(block.quote.rich_text)
+        const quote_text = await this.richText(block.quote.rich_text);
         if (!block.has_children) return md.quote(quote_text);
         let quote_string = "";
         const quote_children_object = await getBlockChildren(
