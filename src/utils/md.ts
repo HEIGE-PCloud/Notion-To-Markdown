@@ -2,6 +2,8 @@ import markdownTable from "markdown-table";
 import { AudioBlockObjectResponse, PdfBlockObjectResponse, RichTextItemResponse, VideoBlockObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 import katex from "katex";
 import { CalloutIcon } from "../types";
+import { getPageLinkFromId } from "./notion"
+import { Client } from "@notionhq/client"
 require("katex/contrib/mhchem");
 export const inlineCode = (text: string) => {
   return `\`${text}\``;
@@ -104,13 +106,13 @@ export const table = (cells: string[][]) => {
   return markdownTable(cells);
 };
 
-export const richText = (textArray: RichTextItemResponse[], plain = false) => {
-  if (plain) {
-    return textArray.map((text) => text.plain_text).join("");
-  }
+export const plainText = (textArray: RichTextItemResponse[]) => {
+  return textArray.map((text) => text.plain_text).join("");
+}
 
-  return textArray
-    .map((text) => {
+export const richText = async (textArray: RichTextItemResponse[], notionClient?: Client) => {
+  return (await Promise.all(textArray
+    .map(async (text) => {
       if (text.type === "text") {
         const annotations = text.annotations;
         let content = text.text.content;
@@ -138,10 +140,22 @@ export const richText = (textArray: RichTextItemResponse[], plain = false) => {
           displayMode: false,
           throwOnError: false,
         });
-      } else {
-        // TODO
+      } else { // text.type === "mention"
+        const mention = text.mention;
+        switch (mention.type) {
+          case "page":
+            if (!notionClient) return "";
+            const pageId: string = mention.page.id;
+            const linkInfo = await getPageLinkFromId(pageId, notionClient);
+            if (linkInfo) {
+              return link(linkInfo.title, linkInfo.link);
+            }
+            break;
+          // case "other types we don't support yet"  
+        }
+        return "";
       }
-    })
+    })))
     .join("");
 };
 
