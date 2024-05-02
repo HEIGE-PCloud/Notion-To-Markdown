@@ -238,17 +238,22 @@ export class NotionToMarkdown {
           console.warn("Unsupported link_to_page type: database_id");
           return "";
         }
+        break;
       }
-
-      case "embed":
-      case "link_preview":
+      case "embed": {
+        const embed = block.embed;
+        const title = embed.caption.length > 0 ? plainText(embed.caption) : embed.url;
+        return md.link(title, embed.url);
+      }
+      case "link_preview": {
+        const linkPreview = block.link_preview;
+        return md.link(linkPreview.url, linkPreview.url);
+      }
       case "child_page":
       case "child_database":
         {
           let blockContent;
           let title: string = type;
-          if (type === "embed") blockContent = block.embed;
-          if (type === "link_preview") blockContent = block.link_preview;
           if (type === "child_page") {
             blockContent = { url: block.id };
             title = block.child_page.title;
