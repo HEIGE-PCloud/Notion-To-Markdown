@@ -1,6 +1,6 @@
 {
   "name": "@pclouddev/notion-to-markdown",
-  "version": "2.7.15",
+  "version": "2.7.16",
   "engines": {
     "node": ">=12"
   },

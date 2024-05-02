@@ -11,7 +11,6 @@ import {
 import { CalloutIcon } from "../types";
 import { getPageRelrefFromId } from "./notion";
 import { Client } from "@notionhq/client";
-require("katex/contrib/mhchem");
 export const inlineCode = (text: string) => {
   return `\`${text}\``;
 };
