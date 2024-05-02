@@ -10,7 +10,7 @@ import {
 } from "@notionhq/client/build/src/api-endpoints";
 import { CalloutIcon } from "../types";
 import { getPageRelrefFromId } from "./notion";
-import { Client } from "@notionhq/client";
+import { Client, isFullUser } from "@notionhq/client";
 export const inlineCode = (text: string) => {
   return `\`${text}\``;
 };
@@ -171,12 +171,31 @@ async function mentionRichText(
       const { title, relref } = await getPageRelrefFromId(pageId, notion);
       return link(title, relref);
     }
-    case "database":
-    case "date":
-    case "user":
-    case "link_preview":
+    case "user": {
+      const userId = mention.user.id;
+      const user = await notion.users.retrieve({ user_id: userId });
+      if (user.name) {
+        return `@${user.name}`;
+      }
+      return "";
+    }
+    case "date": {
+      const date = mention.date;
+      const dateEnd = date.end ? ` -> ${date.end}` : "";
+      const timeZone = date.time_zone ? ` (${date.time_zone})` : "";
+      return `@${date.start}${dateEnd}${timeZone}`;
+    }
+    case "link_preview": {
+      const linkPreview = mention.link_preview;
+      return link(linkPreview.url, linkPreview.url);
+    }
     case "template_mention": {
-      console.warn("Unsupported mention type: ", mention.type);
+      // https://developers.notion.com/reference/rich-text#template-mention-type-object
+      // Hide the template button
+      return "";
+    }
+    case "database": {
+      console.warn("[Warn] Database mention is not supported");
       return "";
     }
   }
