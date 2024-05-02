@@ -8,7 +8,6 @@ import {
   TextRichTextItemResponse,
   VideoBlockObjectResponse,
 } from "@notionhq/client/build/src/api-endpoints";
-import katex from "katex";
 import { CalloutIcon } from "../types";
 import { getPageRelrefFromId } from "./notion";
 import { Client } from "@notionhq/client";
