@@ -173,9 +173,13 @@ async function mentionRichText(
     }
     case "user": {
       const userId = mention.user.id;
-      const user = await notion.users.retrieve({ user_id: userId });
-      if (user.name) {
-        return `@${user.name}`;
+      try {
+        const user = await notion.users.retrieve({ user_id: userId });
+        if (user.name) {
+          return `@${user.name}`;
+        }
+      } catch (error) {
+        console.warn(`Failed to retrieve user with id ${userId}`);
       }
       return "";
     }
