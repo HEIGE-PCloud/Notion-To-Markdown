@@ -1,3 +1,7 @@
+This package is primarily used by [Notion-Hugo](https://github.com/HEIGE-PCloud/Notion-Hugo). It is now completely merged into Notion-Hugo, so this repository is archived.
+
+---
+
 <img src="https://imgur.com/WgXdz9r.png" />
 
 > 💡 For better readability and detailed instructions headover to the [wiki](https://github.com/souvikinator/notion-to-md/wiki)
